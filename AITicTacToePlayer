@@ -1,0 +1,307 @@
+import time
+
+class TicTacToe:
+    def __init__(self):
+        self.board = [" " for _ in range(9)] # Empty spaces on a 3x3 grid
+        self.memo = {} # Memoization cache
+        self.ai_time_log = []
+        self.games_played = 0 
+        self.ai_wins = 0
+        self.ai_losses = 0
+        self.draw = 0
+
+
+
+
+    # Function to print the current board
+    def print_board(self):
+        print(f"{self.board[0]} | {self.board[1]} | {self.board[2]}")
+        print("--+---+--")
+        print(f"{self.board[3]} | {self.board[4]} | {self.board[5]}")
+        print("--+---+--")
+        print(f"{self.board[6]} | {self.board[7]} | {self.board[8]}")
+        print()
+
+    # Function to check if there's a winner
+    def check_winner(self):
+        winning_combinations = [
+            (0, 1, 2), (3, 4, 5), (6, 7, 8),  # Rows
+            (0, 3, 6), (1, 4, 7), (2, 5, 8),  # Columns
+            (0, 4, 8), (2, 4, 6)               # Diagonals
+        ]
+        
+        for combo in winning_combinations:
+            if self.board[combo[0]] == self.board[combo[1]] == self.board[combo[2]] != " ":
+                return self.board[combo[0]]  # Return 'X' or 'O' if there's a winner
+        return None  # No winner yet
+
+    # Function to check if the game is a draw
+    def check_draw(self):
+        return " " not in self.board  # If there's no space left, it's a draw
+
+    # Function to convert board to a hashable tuple for memoization
+    def board_to_tuple(self):
+        return tuple(self.board)
+
+    # Enhanced minimax algorithm with alpha-beta pruning and memoization
+    def minimax(self, depth, alpha, beta, is_maximizing):
+        # Check memoization cache
+        board_state = self.board_to_tuple()
+        if (board_state, depth, is_maximizing) in self.memo:
+            return self.memo[(board_state, depth, is_maximizing)]
+        
+        # Check terminal states
+        winner = self.check_winner()
+        if winner == 'X':
+            return 10 - depth  # AI wins (higher score for quicker wins)
+        if winner == 'O':
+            return depth - 10  # Player wins (penalize deeper losses)
+        if self.check_draw():
+            return 0  # Draw
+        
+        # Set a depth limit for early game exploration
+        if depth > 9:
+            return 0
+        
+        if is_maximizing:
+            best_score = -float('inf')
+            for i in range(9):
+                if self.board[i] == " ":
+                    self.board[i] = 'X'  # AI move
+                    score = self.minimax(depth + 1, alpha, beta, False)
+                    self.board[i] = " "  # Undo the move
+                    best_score = max(score, best_score)
+                    alpha = max(alpha, best_score)
+                    if beta <= alpha:
+                        break  # Alpha-beta pruning
+            self.memo[(board_state, depth, is_maximizing)] = best_score
+            return best_score
+        else:
+            best_score = float('inf')
+            for i in range(9):
+                if self.board[i] == " ":
+                    self.board[i] = 'O'  # Player move
+                    score = self.minimax(depth + 1, alpha, beta, True)
+                    self.board[i] = " "  # Undo the move
+                    best_score = min(score, best_score)
+                    beta = min(beta, best_score)
+                    if beta <= alpha:
+                        break  # Alpha-beta pruning
+            self.memo[(board_state, depth, is_maximizing)] = best_score
+            return best_score
+
+# Iterative deepening search
+    def iterative_deepening(self, max_depth=9):
+        best_move = None
+        
+        # Try increasingly deeper searches
+        for depth_limit in range(1, max_depth + 1):
+            best_score = -float('inf')
+            for i in range(9):
+                if self.board[i] == " ":
+                    self.board[i] = 'X'  # AI move
+                    score = self.minimax(0, -float('inf'), float('inf'), False)
+                    self.board[i] = " "  # Undo the move
+                    if score > best_score:
+                        best_score = score
+                        best_move = i
+            
+            # If we found a winning move, no need to search deeper
+            if best_score > 0:
+                break
+        
+        return best_move
+
+    # Function to find the best move for the AI using multiple optimization techniques
+    def best_move(self):
+        # Count empty spaces to optimize algorithm selection
+        empty_spaces = self.board.count(" ")
+        
+        # Use full iterative deepening for early game
+        if empty_spaces > 6:
+            return self.iterative_deepening()
+        
+        # Use direct minimax with alpha-beta for late game (more precise)
+        else:
+            best_score = -float('inf')
+            move = None
+            for i in range(9):
+                if self.board[i] == " ":
+                    self.board[i] = 'X'  # AI move
+                    score = self.minimax(0, -float('inf'), float('inf'), False)
+                    self.board[i] = " "  # Undo the move
+                    if score > best_score:
+                        best_score = score
+                        move = i
+            return move
+        
+    def player_move(self):
+        while True:
+            try:
+                move = int(input("Enter your move (0-8): "))
+                if move < 0 or move > 8 or self.board[move] != " ":
+                        print("Invalid move. Try again.")
+                else:
+                        self.board[move] = 'O'
+                        break
+            except ValueError:
+                print("Invalid input. Please enter a number between 0-8.")
+    def ai_move(self):
+            start_time = time.time()
+            move = self.best_move()
+            self.board[move] = 'X'
+            end_time = time.time()
+            self.ai_time_log.append(end_time - start_time)
+            print(f"AI chooses position {move}:")
+            self.display_board()
+    def check_game_over(self):
+        winner = self.check_winner()
+        if winner:
+            if winner == 'X':
+                print("AI wins!")
+                self.ai_wins += 1
+            else:
+                print("Congratulations! You win!")
+                self.ai_losses += 1
+                return True
+        elif self.check_draw():
+            print("It's a draw!")
+            self.ties += 1
+            return True
+        return False
+
+    # Main game loop
+    def play_game(self):
+        print("Tic-Tac-Toe with AI")
+        print("You are 'O', the AI is 'X'")
+        print("Enter position (0-8) as shown:")
+        print("0 | 1 | 2")
+        print("--+---+--")
+        print("3 | 4 | 5")
+        print("--+---+--")
+        print("6 | 7 | 8")
+        print()
+        
+        # Increment games played at the start of each game
+        self.games_played += 1
+        # Reset AI time log for each new game
+        self.ai_time_log = []
+
+
+        # Decide who goes first
+        first_player = input("Do you want to go first? (y/n): ").lower()
+        
+        # Clear the memoization cache at the start of each game
+        self.memo.clear()
+        
+        # Reset the board
+        for i in range(9):
+            self.board[i] = " "
+        
+        # If AI goes first
+        if first_player != 'y':
+            # Measure AI move time
+            start_time = time.time()
+            
+            # For first move, use center or corner (optimal play)
+            ai_move = 4  # Center is usually best first move
+            self.board[ai_move] = 'X'
+            
+            # Log AI move time
+            end_time = time.time()
+            self.ai_time_log.append(end_time - start_time)
+            
+            print("AI plays first:")
+            self.print_board()
+        
+        # Main game loop
+        while True:
+            # Player move
+            try:
+                player_move = int(input("Enter your move (0-8): "))
+                if player_move < 0 or player_move > 8:
+                    print("Invalid input. Please enter a number between 0-8.")
+                    continue
+                    
+                if self.board[player_move] == " ":
+                    self.board[player_move] = 'O'
+                else:
+                    print("That position is already taken. Try again.")
+                    continue
+            except ValueError:
+                print("Invalid input. Please enter a number between 0-8.")
+                continue
+            
+            self.print_board()
+            
+            # Check if game is over after player's move
+            winner = self.check_winner()
+            if winner:
+                if winner == 'O':
+                    print("Congratulations! You win!")
+                    self.ai_losses += 1
+                    break
+                else:
+                    print("AI wins!")
+                    self.ai_wins += 1
+                    break
+            elif self.check_draw():
+                print("It's a draw!")
+                self.draw += 1
+                break
+            
+            print("AI is thinking...")
+            
+            # Measure AI move time
+            start_time = time.time() 
+            
+            # AI move
+            ai_move = self.best_move()
+            self.board[ai_move] = 'X'
+            
+            # Log AI move time
+            end_time = time.time()
+            self.ai_time_log.append(end_time - start_time)
+            
+            print(f"AI chooses position {ai_move}:")
+            self.print_board()
+            
+            # Check if game is over after AI's move
+            winner = self.check_winner()
+            if winner:
+                if winner == 'X':
+                    print("AI wins!")
+                    self.ai_wins += 1
+                    break
+                else:
+                    print("You win!")
+                    self.ai_losses += 1
+                    break
+            elif self.check_draw():
+                print("It's a draw!")
+                self.draw += 1
+                break
+    def display_statistics(self):
+            print("\nGame Statistics:")
+            print(f"Games Played: {self.games_played}")
+            print(f"AI Wins: {self.ai_wins}")
+            print(f"AI Losses: {self.ai_losses}")
+            print(f"Ties: {self.draw}")
+            
+            if self.ai_time_log:
+                avg_time = sum(self.ai_time_log) / len(self.ai_time_log)
+                print(f"Average AI Move Time: {avg_time:.4f} seconds")
+                print(f"Total AI Moves: {len(self.ai_time_log)}")
+            else:
+                print("No AI moves logged.")
+
+# Start the game
+if __name__ == "__main__":
+    game = TicTacToe()
+    game.play_game()
+    
+    # Ask to play again
+    while input("Play again? (y/n): ").lower() == 'y':
+        game.play_game()
+    game.display_statistics() 
+    print("Thanks for playing!")
